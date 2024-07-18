@@ -2,6 +2,6 @@
     "rules": {
         "rule1": "eggs",
         "rule2": "milk",
-        "pre_signed_url": "bread"
+        "pre_signed_url": "testbread"
     }
 }
