@@ -10,8 +10,6 @@ import json
 
 
 
-
-
 # --- new initiate app ---
 
 def init_app():
@@ -24,6 +22,8 @@ def init_app():
     # init slack web client
     slack_web_client = WebClient(token=os.environ["SLACK_BOT_TOKEN"])
 
+
+    #TODO should these values be init'd in the SlouchMessageHandler instead??
     ##### ----- access configuration file ----- #####
     with open('config.json') as config_file:
         config = json.load(config_file)
