@@ -10,8 +10,6 @@ from slack_sdk.errors import SlackApiError
 import json
 
 
-
-
 # --- new initiate app ---
 
 def init_app():
@@ -23,7 +21,6 @@ def init_app():
 
     # init slack web client
     slack_web_client = WebClient(token=os.environ["SLACK_BOT_TOKEN"])
-
 
     #TODO should these values be init'd in the SlouchMessageHandler instead??
     #TODO i think ill just pass them to SlouchMessageHandler... but should i just abstract these all into "slouch_settings"?
@@ -92,6 +89,11 @@ def main():
         # record the slack message text
         msg_handler.content = message["text"]
 
-        msg_handler.scan_message(message["ts"])
-        msg_handler.post_faq_content(message["ts"])
-        msg_handler.initial_reply(message["ts"])
+        msg_handler.scan_for_dlp(message)
+        msg_handler.scan_time_of_day(message)
+
+    SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"]).start()
+
+
+if __name__ == "__main__":
+    main()

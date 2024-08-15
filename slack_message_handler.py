@@ -1,4 +1,6 @@
 import re
+import datetime
+import pytz 
 
 class SlackMessageHandler:
 
@@ -12,39 +14,76 @@ class SlackMessageHandler:
         self.security_poc = slouch_settings['security_poc'] # find user id... replace in slouch_settings file
 
         ##### ----- set expected working hours ----- #####
-        self.working_hours = slouch_settings['working_hours'] # how to easily reference working hours in config file + code?
+        self.end_expected_hours_utc = slouch_settings['end_expected_hours_utc'] # how to easily reference working hours in config file + code?
+        self.start_expected_hours_utc = slouch_settings['start_expected_hours_utc'] # how to easily reference working hours in config file + code?
 
         ##### ----- set DLP regex ----- #####
         self.dlp_rules = dlp_rules['rules']
-
-
-    # check to see if any DLP rules match
-    def scan_message(rule, slack_message):
-        if re.match(rule, slack_message):
-            return True
-        return False
     
-    def check_dlp_pattern(self, slack_message):
-        for rule_name, pattern in self.dlp_rules['rules']:
-            if re.match(pattern, slack_message):
-                return "DLP rule \"f{rule_name}\" matched"
-
-
-        return False
+    # TODO? consider allowing for a user ID OR username in the settings.
+    # def validate_user_id(self, username):
+    #     response = self.client.users_list()
+    #     users = response['members']
+    #     for user in users:
+    #         if user['name'] == username:
+    #             return user['id']
+    #     return None
+    
 
     # alert the security POC if there's a match -- in thread. "https://api.slack.com/methods/chat.postMessage" apparently its hard to start a DM.
-    def send_alert(self, body):
+    def send_dlp_alarm(self, msg):
         self.client.chat_postMessage(
             channel=self.conversation_id,
-            thread_ts=body["container"]["message_ts"],
-            text="DLP rule matched :rotating_light: @{self_security_poc}", #how to @ a user using a user ID??
+            thread_ts=msg["ts"],
+            text=f"DLP rule matched :rotating_light: <@{self.security_poc}>", #how to @ a user using a user ID?? U079RM8SLJJ
+        )
+        pass
+
+    def send_dlp_alarm(self, msg):
+        self.client.chat_postMessage(
+            channel=self.conversation_id,
+            thread_ts=msg["ts"],
+            text=f"Unusual time of day :warning: <@{self.security_poc}>", #how to @ a user using a user ID?? U079RM8SLJJ
         )
         pass
 
     # react to the message if there's a dlp match. react with an emoji and reply in thread?
-    def message_reaction(self, body):
-        self.app.client.reactions_add(
+    def message_reaction(self, msg):
+        self.client.reactions_add(
             channel=self.conversation_id,
-            timestamp=body["container"]["message_ts"],
-            name="rotating_light: @{self_security_poc}", #how to @ a user using a user ID??
+            timestamp=msg["ts"],
+            name="warning"
         )
+    
+    def scan_for_dlp(self, slack_message):
+        for rule_name, pattern in self.dlp_rules.items():
+            if re.match(pattern, slack_message['text']):
+                # reaction
+                self.message_reaction(slack_message)
+                # send alert
+                self.send_dlp_alarm(slack_message)
+                return "DLP rule \"f{rule_name}\" matched"
+
+        return False
+
+    def is_timestamp_in_time_range(self, timestamp: str, start_time: str, end_time: str) -> bool:
+        # Convert the timestamp to a timezone-aware datetime object in UTC
+        utc_dt_object = datetime.datetime.fromtimestamp(float(timestamp), tz=datetime.timezone.utc)
+        
+        # Extract the time component (in UTC)
+        timestamp_time = utc_dt_object.time()
+        
+        # Convert start_time and end_time to time objects
+        start_time_obj = datetime.datetime.strptime(start_time, "%I %p").time()
+        end_time_obj = datetime.datetime.strptime(end_time, "%I %p").time()
+        
+        # Check if the timestamp falls within the range
+        if start_time_obj < end_time_obj:
+            return start_time_obj <= timestamp_time <= end_time_obj
+        else:
+            return timestamp_time >= start_time_obj or timestamp_time <= end_time_obj
+        
+    def scan_time_of_day(self, slack_message):
+        if self.is_timestamp_in_time_range(slack_message['ts'], self.end_expected_hours_utc, self.start_expected_hours_utc):
+            self.message_reaction(slack_message)
+            self.send_dlp_alarm(slack_message)
