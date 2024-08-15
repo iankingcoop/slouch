@@ -1,6 +1,7 @@
 {
     "channel_name": "engineering",
-    "security_poc": "ian.cooper",
-    "working_hours": "???UTC8 to UTC9???",
-    "db_password": "password",
+    "security_poc": "U079RM8SLJJ",
+    "start_expected_hours_utc": "10 AM",
+    "end_expected_hours_utc": "5 PM",
+    "db_password": "password"
 }
