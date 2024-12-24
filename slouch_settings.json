@@ -1,7 +1,8 @@
 {
+    "workspace": "iantesttwo",
     "channel_name": "engineering",
-    "security_poc": "U079RM8SLJJ",
-    "start_expected_hours_utc": "10 AM",
-    "end_expected_hours_utc": "5 PM",
+    "security_poc": "U07N38GH5D5",
+    "start_expected_hours_utc": "1 AM",
+    "end_expected_hours_utc": "11 PM",
     "db_password": "password"
 }

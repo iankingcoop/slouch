@@ -1,6 +1,7 @@
 import re
 import datetime
 import pytz 
+import json
 
 class SlackMessageHandler:
 
@@ -18,7 +19,7 @@ class SlackMessageHandler:
         self.start_expected_hours_utc = slouch_settings['start_expected_hours_utc'] # how to easily reference working hours in config file + code?
 
         ##### ----- set DLP regex ----- #####
-        self.dlp_rules = dlp_rules['rules']
+        self.dlp_rules = dlp_rules
     
     # TODO? consider allowing for a user ID OR username in the settings.
     # def validate_user_id(self, username):
@@ -31,15 +32,15 @@ class SlackMessageHandler:
     
 
     # alert the security POC if there's a match -- in thread. "https://api.slack.com/methods/chat.postMessage" apparently its hard to start a DM.
-    def send_dlp_alarm(self, msg):
+    def send_dlp_alarm(self, msg, rule_name):
         self.client.chat_postMessage(
             channel=self.conversation_id,
             thread_ts=msg["ts"],
-            text=f"DLP rule matched :rotating_light: <@{self.security_poc}>", #how to @ a user using a user ID?? U079RM8SLJJ
+            text=f"DLP rule \"{rule_name}\" matched :rotating_light: <@{self.security_poc}>", #how to @ a user using a user ID?? U079RM8SLJJ
         )
         pass
 
-    def send_dlp_alarm(self, msg):
+    def send_time_day_alarm(self, msg):
         self.client.chat_postMessage(
             channel=self.conversation_id,
             thread_ts=msg["ts"],
@@ -48,21 +49,30 @@ class SlackMessageHandler:
         pass
 
     # react to the message if there's a dlp match. react with an emoji and reply in thread?
-    def message_reaction(self, msg):
+    def message_reaction_warning(self, msg):
         self.client.reactions_add(
             channel=self.conversation_id,
             timestamp=msg["ts"],
             name="warning"
         )
+
+    def message_reaction_light(self, msg):
+        self.client.reactions_add(
+            channel=self.conversation_id,
+            timestamp=msg["ts"],
+            name="rotating_light"
+        )
     
     def scan_for_dlp(self, slack_message):
         for rule_name, pattern in self.dlp_rules.items():
+            print(777)
+            print(rule_name, pattern)
             if re.match(pattern, slack_message['text']):
                 # reaction
-                self.message_reaction(slack_message)
+                self.message_reaction_light(slack_message)
                 # send alert
-                self.send_dlp_alarm(slack_message)
-                return "DLP rule \"f{rule_name}\" matched"
+                self.send_dlp_alarm(slack_message, rule_name)
+                return True
 
         return False
 
@@ -85,5 +95,5 @@ class SlackMessageHandler:
         
     def scan_time_of_day(self, slack_message):
         if self.is_timestamp_in_time_range(slack_message['ts'], self.end_expected_hours_utc, self.start_expected_hours_utc):
-            self.message_reaction(slack_message)
-            self.send_dlp_alarm(slack_message)
+            self.message_reaction_warning(slack_message)
+            self.send_time_day_alarm(slack_message)
